@@ -15,3 +15,16 @@ fi
 
 echo "==> brew bundle"
 brew bundle --file="{{ .chezmoi.homeDir }}/.Brewfile"
+
+echo "==> complétions zsh"
+mkdir -p "{{ .chezmoi.homeDir }}/.zfunc"
+
+if command -v pass-cli >/dev/null 2>&1; then
+  pass-cli completions zsh > "{{ .chezmoi.homeDir }}/.zfunc/_pass-cli"
+fi
+
+if command -v talosctl >/dev/null 2>&1; then
+  talosctl completion zsh > "{{ .chezmoi.homeDir }}/.zfunc/_talosctl"
+fi
+
+rm -f "{{ .chezmoi.homeDir }}/.zcompdump"
