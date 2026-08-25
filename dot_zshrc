@@ -7,6 +7,10 @@ source $ZSH/oh-my-zsh.sh
 export PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH"
 export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
 
+source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source $(brew --prefix)/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh
+
 if [[ -o interactive ]] && [[ -z $ZELLIJ ]] && command -v zellij >/dev/null; then
 	exec zellij
 fi
@@ -19,5 +23,3 @@ export PATH="/Users/simon/.local/bin:$PATH"
 fpath=(~/.zfunc $fpath)
 autoload -Uz compinit && compinit
 source <(talosctl completion zsh)
-source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh

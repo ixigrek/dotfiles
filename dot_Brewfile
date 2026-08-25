@@ -122,6 +122,8 @@ brew "zellij"
 brew "zsh-autosuggestions"
 # Fish shell like syntax highlighting for zsh
 brew "zsh-syntax-highlighting"
+# Better and friendly vi(vim) mode plugin for ZSH
+brew "zsh-vi-mode"
 # Packer
 brew "hashicorp/tap/packer"
 # Terraform
