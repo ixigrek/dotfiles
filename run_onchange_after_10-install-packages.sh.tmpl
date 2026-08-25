@@ -13,6 +13,7 @@ elif [ -x /usr/local/bin/brew ]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 
+export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
 echo "==> brew bundle"
 brew bundle --file="{{ .chezmoi.homeDir }}/.Brewfile"
 
