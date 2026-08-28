@@ -1,5 +1,9 @@
 theme	= Gruvbox Material
 
-macos-option-as-alt = right
+# macOS blur and transparency settings
+background-opacity = 0.25
+background-blur = macos-glass-regular
+
+macos-option-as-alt = left
 keybind = alt+left=unbind
 keybind = alt+right=unbind
