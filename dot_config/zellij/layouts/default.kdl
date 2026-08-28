@@ -1,0 +1,21 @@
+// Layout par défaut : barres zjstatus transparentes.
+//
+// Aucun `bg=` n'est défini dans les formats (voir les alias zjstatus-tabs et
+// zjstatus-status dans config.kdl) : zjstatus émet alors ESC[49m, le fond par
+// défaut du terminal, donc le background-opacity / blur de Ghostty s'applique.
+//
+// Les dispositions automatiques (swap layouts) sont dans default.swap.kdl,
+// à garder synchronisé avec ce fichier.
+// Pour revenir aux barres d'origine : supprimer ce fichier et default.swap.kdl.
+
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zjstatus-tabs"
+        }
+        children
+        pane size=1 borderless=true {
+            plugin location="zjstatus-status"
+        }
+    }
+}
