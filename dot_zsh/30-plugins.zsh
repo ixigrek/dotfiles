@@ -16,3 +16,24 @@ if command -v brew >/dev/null 2>&1; then
     zvm_after_init_commands+=(enable-fzf-tab)
   fi
 fi
+
+# Keybindings fzf : Ctrl-R (historique), Alt-C (cd), Ctrl-F (fichiers).
+# Ctrl-T, le défaut de fzf pour les fichiers, ne remonterait jamais jusqu'ici :
+# zellij le capture pour le mode tab (config.kdl, shared_except "locked", qui
+# réserve aussi Ctrl-p/n/h/s/b/o/g/q). Ctrl-F n'est bindé qu'en mode scroll.
+# Même contrainte que fzf-tab ci-dessus : zvm réécrit tout à son init différé,
+# d'où le passage par son hook quand le plugin est présent.
+#
+# L'ordre dans zvm_after_init_commands compte : enable-fzf-tab passe AVANT.
+# fzf lie ensuite Tab à fzf-completion, mais mémorise au passage le binding
+# précédent dans $fzf_default_completion (= fzf-tab-complete) et s'y rabat en
+# l'absence du trigger `**`. Tab reste donc sur fzf-tab, et `**<TAB>` s'ajoute.
+if command -v fzf >/dev/null 2>&1; then
+  _fzf_keys='eval "$(fzf --zsh)"; bindkey "^F" fzf-file-widget'
+  if (( $+functions[zvm_init] )); then
+    zvm_after_init_commands+=("$_fzf_keys")
+  else
+    eval "$_fzf_keys"
+  fi
+  unset _fzf_keys
+fi

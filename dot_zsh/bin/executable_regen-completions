@@ -1,0 +1,100 @@
+#!/usr/bin/env zsh
+# Audite les complétions zsh et comble les trous dans ~/.zfunc.
+#
+# Homebrew installe déjà les complétions de la plupart des formules dans
+# $(brew --prefix)/share/zsh/site-functions, répertoire mis dans fpath par
+# `brew shellenv` (00-path.zsh) : kubectl, helm, argocd, talosctl, cilium,
+# hubble, gh, uv, yq, just, chezmoi... sont couverts sans rien faire, et
+# suivent la version de la formule. Les régénérer à la main dans ~/.zfunc
+# ne ferait que masquer ceux de brew avec des copies qui se périment.
+#
+# Ce script ne génère donc QUE pour les binaires sans complétion dans fpath —
+# typiquement les outils installés hors brew (go install, cargo, curl).
+# ~/.zfunc est en tête de fpath (10-completion.zsh) et n'a aucun coût au
+# démarrage : compinit les indexe une fois puis sert son dumpfile.
+#
+# terraform et packer n'apparaissent pas ici : HashiCorp ne fournit pas de
+# complétion zsh, ils passent par bashcompinit dans ~/.zsh/60-tools.zsh.
+#
+# Usage :  regen-completions          audite et génère ce qui manque
+#          regen-completions --dry    audite seulement
+
+emulate -L zsh
+setopt no_unset pipe_fail
+
+# Lancé comme script, zsh ne lit que ~/.zshenv : fpath n'aurait pas les
+# site-functions de brew et l'audit croirait tout manquant. On reconstruit
+# donc le fpath de la session interactive (cf. 00-path.zsh / 10-completion.zsh).
+typeset -U fpath
+if command -v brew >/dev/null 2>&1; then
+  fpath=("$(brew --prefix)/share/zsh/site-functions" $fpath)
+fi
+fpath=("$HOME/.zfunc" $fpath)
+
+typeset -A CMDS=(
+  kubectl  'kubectl completion zsh'
+  helm     'helm completion zsh'
+  argocd   'argocd completion zsh'
+  talosctl 'talosctl completion zsh'
+  cilium   'cilium completion zsh'
+  hubble   'hubble completion zsh'
+  chezmoi  'chezmoi completion zsh'
+  k9s      'k9s completion zsh'
+  stern    'stern --completion=zsh'
+  gh       'gh completion -s zsh'
+  just     'just --completions zsh'
+  uv       'uv generate-shell-completion zsh'
+  yq       'yq shell-completion zsh'
+  kubectx  'kubectx --completion zsh'
+)
+
+local dry=0
+[[ ${1:-} == --dry ]] && dry=1
+
+# Une complétion est déjà fournie si un _<tool> traîne quelque part dans fpath
+# (hors ~/.zfunc, qu'on est justement en train de remplir).
+has_completion() {
+  local tool=$1 d
+  for d in $fpath; do
+    [[ $d == "$HOME/.zfunc" ]] && continue
+    [[ -f "$d/_$tool" ]] && { print -r -- "$d"; return 0 }
+  done
+  return 1
+}
+
+mkdir -p "$HOME/.zfunc"
+local tool src provider generated=0
+
+for tool in ${(ko)CMDS}; do
+  src=$CMDS[$tool]
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    print -r -- "  ·  $tool — non installé"
+    continue
+  fi
+  if provider=$(has_completion "$tool"); then
+    print -r -- "  ✓  $tool — déjà fourni par ${provider/#$HOME/~}"
+    rm -f "$HOME/.zfunc/_$tool" 2>/dev/null   # purge un doublon d'une ancienne exécution
+    continue
+  fi
+  if (( dry )); then
+    print -r -- "  →  $tool — à générer"
+    continue
+  fi
+  if eval "$src" > "$HOME/.zfunc/_$tool" 2>/dev/null && [[ -s "$HOME/.zfunc/_$tool" ]]; then
+    print -r -- "  +  $tool — généré dans ~/.zfunc"
+    generated=1
+  else
+    rm -f "$HOME/.zfunc/_$tool"
+    print -r -- "  ✗  $tool — échec de la génération"
+  fi
+done
+
+if (( generated )); then
+  # oh-my-zsh ne revalide son dumpfile qu'une fois par jour : sans cette purge,
+  # les fichiers qu'on vient d'écrire restent invisibles jusqu'au lendemain.
+  rm -f "$HOME"/.zcompdump* 2>/dev/null
+  [[ -n ${ZSH_COMPDUMP:-} ]] && rm -f "$ZSH_COMPDUMP" 2>/dev/null
+  print -r -- ""; print -r -- "Cache compinit purgé — relance un shell."
+else
+  print -r -- ""; print -r -- "Rien à générer."
+fi

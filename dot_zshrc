@@ -1,123 +1,21 @@
-# --- Homebrew en premier : tout le reste en dépend ---
-if [ -x /opt/homebrew/bin/brew ]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-elif [ -x /usr/local/bin/brew ]; then
-  eval "$(/usr/local/bin/brew shellenv)"
-fi
-
-export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
-
-# --- oh-my-zsh ---
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="bureau"
-plugins=(git)
-[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
-
-# --- plugins zsh (brew) ---
-if command -v brew >/dev/null 2>&1; then
-  BREW_PREFIX="$(brew --prefix)"
-  # fzf-tab en premier : il doit s'installer sur la complétion
-  # avant que les autres plugins n'enveloppent les widgets.
-  for p in fzf-tab zsh-syntax-highlighting zsh-autosuggestions zsh-vi-mode; do
-    f="$BREW_PREFIX/share/$p/$p.zsh"
-    [ -f "$f" ] || f="$BREW_PREFIX/share/$p/$p.plugin.zsh"
-    [ -f "$f" ] && source "$f"
-  done
-  # zsh-vi-mode réécrit les keybindings à son init : on rebranche fzf-tab après.
-  if (( $+functions[enable-fzf-tab] )) && (( $+functions[zvm_before_init] )); then
-    zvm_after_init_commands+=(enable-fzf-tab)
-  fi
-fi
-
-# --- thème Gruvbox Material (aligné sur ghostty + zjstatus) ---
-# ghostty tourne avec background-opacity 0.25 : tous les fonds restent
-# à -1 (transparent) pour ne pas casser le blur, seule la ligne
-# sélectionnée reçoit un fond opaque.
-typeset -gA GRUVBOX=(
-  fg     '#d4be98'  bg1    '#32302f'  bg3    '#45403d'  bg4  '#504945'
-  grey0  '#7c6f64'  grey1  '#928374'
-  red    '#ea6962'  orange '#e78a4e'  yellow '#d8a657'
-  green  '#a9b665'  aqua   '#89b482'  blue   '#7daea3'  purple '#d3869b'
-)
-
-export FZF_DEFAULT_OPTS="\
---color=fg:$GRUVBOX[fg],fg+:$GRUVBOX[fg],bg:-1,bg+:$GRUVBOX[bg3] \
---color=hl:$GRUVBOX[green],hl+:$GRUVBOX[green] \
---color=border:$GRUVBOX[bg4],separator:$GRUVBOX[bg4],label:$GRUVBOX[grey1] \
---color=preview-fg:$GRUVBOX[fg],preview-bg:-1,gutter:-1 \
---color=header:$GRUVBOX[blue],info:$GRUVBOX[aqua],spinner:$GRUVBOX[yellow] \
---color=prompt:$GRUVBOX[purple],pointer:$GRUVBOX[red],marker:$GRUVBOX[orange] \
---color=query:$GRUVBOX[fg] \
---prompt=' ' --pointer='▶' --marker='◆'"
-
-# bat rend les previews : même famille de couleurs
-export BAT_THEME="gruvbox-material-dark"
-
-# colorisation des listings (ls + menu de complétion), en truecolor
-LS_COLORS="di=1;38;2;125;174;163:ln=38;2;211;134;155:ex=1;38;2;169;182;101"
-LS_COLORS+=":so=38;2;211;134;155:pi=38;2;216;166;87:bd=38;2;231;138;78"
-LS_COLORS+=":cd=38;2;231;138;78:su=1;38;2;234;105;98:sg=1;38;2;234;105;98"
-LS_COLORS+=":tw=1;38;2;137;180;130:ow=1;38;2;137;180;130:or=1;38;2;234;105;98"
-LS_COLORS+=":*.tar=38;2;234;105;98:*.gz=38;2;234;105;98:*.zip=38;2;234;105;98"
-LS_COLORS+=":*.png=38;2;211;134;155:*.jpg=38;2;211;134;155:*.svg=38;2;211;134;155"
-LS_COLORS+=":*.mp4=38;2;137;180;130:*.mp3=38;2;137;180;130"
-LS_COLORS+=":*.md=38;2;216;166;87:*.json=38;2;216;166;87:*.toml=38;2;216;166;87"
-export LS_COLORS
-
-# zsh-autosuggestions dans le gris "commentaire" de la palette
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#7c6f64"
-
-# --- fzf-tab ---
-if (( $+functions[enable-fzf-tab] )); then
-  # fzf-tab remplace le menu de sélection natif de zsh
-  zstyle ':completion:*' menu no
-  zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-  # en-têtes de groupe en bleu gruvbox
-  zstyle ':completion:*:descriptions' format '%F{#7daea3}[%d]%f'
-  zstyle ':completion:*:warnings' format '%F{#ea6962}aucune correspondance%f'
-  # sans ça fzf-tab ignore FZF_DEFAULT_OPTS et repart sur les couleurs par défaut
-  zstyle ':fzf-tab:*' use-fzf-default-opts yes
-  zstyle ':fzf-tab:*' switch-group '<' '>'
-
-  # aperçu par défaut : dossier -> listing, fichier texte -> bat, sinon type MIME.
-  # $realpath est fourni par fzf-tab ; il est vide pour les complétions
-  # non-fichier (branches git, options...), d'où les tests -d/-f.
-  zstyle ':fzf-tab:*' fzf-preview '
-    if [[ -d $realpath ]]; then
-      ls -1 --color=always -- $realpath | head -200
-    elif [[ -f $realpath ]]; then
-      case ${$(file --mime-type -b -- $realpath)%%/*} in
-        text) bat --style=numbers --color=always --line-range=:200 -- $realpath ;;
-        inode) file -b -- $realpath ;;
-        *) case $(file --mime-type -b -- $realpath) in
-             application/json|application/javascript|application/xml|application/x-*sh|application/*+xml)
-               bat --style=numbers --color=always --line-range=:200 -- $realpath ;;
-             *) file -b -- $realpath ;;
-           esac ;;
-      esac
-    fi'
-  zstyle ':fzf-tab:*' fzf-flags --preview-window=right:60%:wrap
-fi
-
-# --- PATH ---
-export PATH="$HOME/.local/bin:$PATH"
-[ -d "/opt/homebrew/opt/ffmpeg-full/bin" ] && \
-  export PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH"
-
-# --- Go ---
-export GOPATH="$HOME/go"
-if command -v brew >/dev/null 2>&1 && brew --prefix golang >/dev/null 2>&1; then
-  export GOROOT="$(brew --prefix golang)/libexec"
-  export PATH="$PATH:$GOROOT/bin"
-fi
-export PATH="$PATH:$GOPATH/bin"
-
-# --- complétions ---
-fpath=($HOME/.zfunc $fpath)
-autoload -Uz compinit && compinit
-
-# --- zellij en dernier (exec remplace le shell) ---
-if [[ -o interactive ]] && [[ -z "$ZELLIJ" ]] && [[ -z "$NO_ZELLIJ" ]] \
-   && command -v zellij >/dev/null; then
-  exec zellij
-fi
+# Toute la configuration vit dans ~/.zsh/, chargée dans l'ordre lexical.
+# Le préfixe numérique encode les dépendances :
+#
+#   00-path       Homebrew + PATH (tout le reste en dépend)
+#   10-completion fpath, avant le compinit d'oh-my-zsh
+#   20-omz        oh-my-zsh (lance compinit)
+#   30-plugins    plugins brew, après compinit, fzf-tab en tête
+#   40-theme      palette Gruvbox Material, FZF_DEFAULT_OPTS, LS_COLORS
+#   50-fzf-tab    zstyles fzf-tab, dépend de 40
+#   60-tools      bashcompinit (terraform, packer) + hook direnv
+#   90-zellij     exec zellij, doit rester en dernier
+#
+# ~/.zsh/bin/regen-completions audite les complétions et comble les trous
+# dans ~/.zfunc (la plupart viennent déjà des site-functions de brew).
+#
+# Ajouts locaux / machine : ~/.zsh/80-local.zsh — surtout pas 9x, qui
+# passerait après l'exec de 90-zellij et ne s'exécuterait jamais.
+for _zf in "$HOME"/.zsh/*.zsh(N.); do
+  source "$_zf"
+done
+unset _zf

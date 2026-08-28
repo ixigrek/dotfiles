@@ -37,5 +37,12 @@ LS_COLORS+=":*.mp4=38;2;137;180;130:*.mp3=38;2;137;180;130"
 LS_COLORS+=":*.md=38;2;216;166;87:*.json=38;2;216;166;87:*.toml=38;2;216;166;87"
 export LS_COLORS
 
+# eza lit LS_COLORS ci-dessus (c'est pour ça qu'il remplace le ls de macOS dans
+# l'aperçu fzf-tab), mais garde des codes en dur pour deux détails hors norme
+# GNU : la flèche des liens symboliques et le chemin de leur cible.
+#   xx = ponctuation (la flèche ->)  -> grey0  #7c6f64
+#   lp = chemin de la cible          -> blue   #7daea3, comme di
+export EZA_COLORS="xx=38;2;124;111;100:lp=38;2;125;174;163"
+
 # zsh-autosuggestions dans le gris "commentaire" de la palette.
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=$GRUVBOX[grey0]"
