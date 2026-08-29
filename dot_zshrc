@@ -17,6 +17,12 @@
 #
 # Ajouts locaux / machine : ~/.zsh/80-local.zsh — surtout pas 9x, qui
 # passerait après l'exec de 90-zellij et ne s'exécuterait jamais.
+#
+# Les installeurs de complétion (`scw autocomplete install`, terragrunt
+# --install-autocomplete...) ajoutent leur ligne À LA FIN de ce fichier, donc
+# après l'exec : elle est morte. Décliner l'installation automatique et passer
+# par ~/.zsh/bin/regen-completions (stub #compdef dans ~/.zfunc), ou à défaut
+# par ~/.zsh/60-tools.zsh.
 for _zf in "$HOME"/.zsh/*.zsh(N.); do
   source "$_zf"
 done
