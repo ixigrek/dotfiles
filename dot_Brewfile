@@ -2,10 +2,14 @@ tap "hashicorp/tap"
 tap "oven-sh/bun"
 tap "protonpass/tap"
 tap "siderolabs/tap", trusted: { formulae: ["talosctl"] }
+tap "terraform-linters/tap"
+tap "ovh/tap"
 # Library for command-line editing
 brew "readline"
 # Display directories as trees (with optional color/HTML output)
 brew "tree"
+# Simple, modern, secure file encryption
+brew "age"
 # Automate deployment, configuration, and upgrading
 brew "ansible"
 # Open-source, cross-platform JavaScript runtime environment
@@ -18,6 +22,10 @@ brew "ansible-lint"
 brew "argocd"
 # Code searching, linting, rewriting
 brew "ast-grep"
+# Official Amazon AWS command-line interface
+brew "awscli"
+# Vault for securely storing and accessing AWS credentials
+brew "aws-vault"
 # Microsoft Azure CLI 2.0
 brew "azure-cli"
 # Clone of cat(1) with syntax highlighting and Git integration
@@ -54,6 +62,8 @@ brew "git"
 brew "go"
 # Language server for the Go language
 brew "gopls"
+# Command-line interface for Hetzner Cloud
+brew "hcloud"
 # Kubernetes package manager
 brew "helm"
 # Language server for Helm
@@ -84,6 +94,10 @@ brew "ncdu"
 brew "neovim"
 # Port scanning utility for large networks
 brew "nmap"
+# OpenStack command-line client
+brew "openstackclient"
+# Outscale Command Line Interface
+brew "osc-cli"
 # PDF rendering library (based on the xpdf-3.0 code base)
 brew "poppler"
 # Search tool like grep and The Silver Searcher
@@ -94,12 +108,22 @@ brew "rsync"
 brew "rtk"
 # Safe, concurrent, practical language
 brew "rust"
+# Command-line interface for Scaleway
+brew "scw"
+# Editor of encrypted files
+brew "sops"
 # Opinionated Lua code formatter
 brew "stylua"
 # CLI for out-of-band management of Kubernetes nodes created by Talos
 brew "talosctl"
+# Generate documentation from Terraform modules
+brew "terraform-docs"
+# Thin wrapper for Terraform e.g. for locking state
+brew "terragrunt"
 # Terraform Language Server
 brew "terraform-ls"
+# Vulnerability scanner for container images, file systems, and Git repos
+brew "trivy"
 # Language for application scale JavaScript development
 brew "typescript"
 # Language Server Protocol implementation for TypeScript wrapping tsserver
@@ -132,6 +156,8 @@ brew "hashicorp/tap/terraform", trusted: true
 brew "protonpass/tap/pass-cli", trusted: true
 # Terminal-based AI coding assistant
 cask "claude-code@latest"
+# Set of tools to manage resources and applications hosted on Google Cloud
+cask "gcloud-cli"
 # Web browser
 cask "firefox"
 cask "font-0xproto-nerd-font"
@@ -212,12 +238,16 @@ cask "font-zed-mono-nerd-font"
 cask "ghostty"
 # UI for Kubernetes
 cask "headlamp"
+# OVHcloud command-line interface
+cask "ovh/tap/ovhcloud-cli"
 # Meet, chat, call, and collaborate in just one place
 cask "microsoft-teams"
 # Client for Proton Mail and Proton Calendar
 cask "proton-mail"
 # VPN client focusing on security
 cask "protonvpn"
+# Pluggable linter for Terraform
+cask "terraform-linters/tap/tflint"
 # Team communication and collaboration software
 cask "slack"
 # Open-source code editor

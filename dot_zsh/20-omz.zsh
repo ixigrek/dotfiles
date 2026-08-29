@@ -1,5 +1,7 @@
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="bureau"
+# Vide : le prompt est rendu par starship (70-prompt.zsh). Un thème omz
+# poserait son propre PROMPT et le masquerait.
+ZSH_THEME=""
 plugins=(git)
 
 if [ -f "$ZSH/oh-my-zsh.sh" ]; then

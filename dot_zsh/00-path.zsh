@@ -17,6 +17,13 @@ path=("$HOME/.local/bin" $path)
 [ -d /opt/homebrew/opt/ffmpeg-full/bin ] && \
   path=(/opt/homebrew/opt/ffmpeg-full/bin $path)
 
+# --- gcloud ---
+# Le cask lie déjà gcloud, gsutil et bq dans /opt/homebrew/bin. Ce répertoire
+# ne sert qu'aux composants ajoutés ensuite par `gcloud components install`
+# (gke-gcloud-auth-plugin, alpha, beta...), qui y atterrissent sans être liés.
+[ -d /opt/homebrew/share/google-cloud-sdk/bin ] && \
+  path+=(/opt/homebrew/share/google-cloud-sdk/bin)
+
 # --- Go ---
 export GOPATH="$HOME/go"
 if command -v brew >/dev/null 2>&1 && brew --prefix golang >/dev/null 2>&1; then

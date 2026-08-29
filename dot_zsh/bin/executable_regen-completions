@@ -46,6 +46,7 @@ typeset -A CMDS=(
   uv       'uv generate-shell-completion zsh'
   yq       'yq shell-completion zsh'
   kubectx  'kubectx --completion zsh'
+  ovhcloud 'ovhcloud completion zsh'
 )
 
 local dry=0
@@ -88,6 +89,28 @@ for tool in ${(ko)CMDS}; do
     print -r -- "  ✗  $tool — échec de la génération"
   fi
 done
+
+# --- Complétions de brew inutilisables telles quelles ---
+# Certaines formules déposent dans site-functions un script à SOURCER et non
+# une fonction `_outil` autoloadable : sans en-tête `#compdef`, compinit ne les
+# regarde jamais. Le `_scw` de brew cumule les deux défauts — il fige en plus
+# le chemin Cellar versionné (`compdef ... /opt/homebrew/Cellar/scw/2.61.0/...`),
+# qui casserait à chaque montée de version. On écrit donc dans ~/.zfunc
+# (prioritaire dans fpath) un vrai stub `#compdef` qui délègue au binaire :
+# contrairement aux copies que ce script refuse de faire, il ne périme pas,
+# puisque toute la logique reste dans `scw autocomplete complete`.
+if command -v scw >/dev/null 2>&1; then
+  cat > "$HOME/.zfunc/_scw" <<'SCW'
+#compdef scw
+local -a output opts
+output=($(scw autocomplete complete zsh -- ${CURRENT} ${words}))
+opts=('-S' ' ')
+[[ $output == *= ]] && opts=('-S' '')
+compadd "${opts[@]}" -- "${output[@]}"
+SCW
+  print -r -- "  +  scw — stub #compdef écrit dans ~/.zfunc (celui de brew est à sourcer)"
+  generated=1
+fi
 
 if (( generated )); then
   # oh-my-zsh ne revalide son dumpfile qu'une fois par jour : sans cette purge,
