@@ -33,6 +33,24 @@ if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
 
+# --- Contexte cloud par répertoire ---
+# Prolonge le hook ci-dessus : ~/.config/direnv/direnvrc fournit
+# `use gcloud|azure|aws`, qui posent CLOUDSDK_ACTIVE_CONFIG_NAME,
+# AZURE_CONFIG_DIR et AWS_PROFILE par dépôt. starship ne rend ces modules que
+# si la variable correspondante existe (cf. ~/.config/starship.toml), donc
+# hors projet le prompt est nu.
+#
+# gcloud et aws sont neutres d'eux-mêmes : sans variable, rien à afficher.
+# azure non — faute de detect_env_vars, le module retombe sur ~/.azure et
+# afficherait l'abonnement par défaut partout. D'où ce répertoire vide par
+# défaut, que direnv remplace dans les dossiers de projet.
+#
+# La session de référence reste dans ~/.azure : c'est elle que `use azure`
+# recopie pour amorcer un profil sans nouveau login. Pour y revenir
+# ponctuellement : AZURE_CONFIG_DIR=~/.azure az account show
+export AZURE_CONFIG_DIR="$HOME/.azure-profiles/none"
+[ -d "$AZURE_CONFIG_DIR" ] || mkdir -p "$AZURE_CONFIG_DIR"
+
 # --- zoxide ---
 # `z <fragment>` saute vers le répertoire le plus fréquenté qui correspond,
 # `zi` ouvre la sélection dans fzf — donc avec FZF_DEFAULT_OPTS (40-theme.zsh).
