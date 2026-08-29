@@ -8,6 +8,7 @@
 #   40-theme      palette Gruvbox Material, FZF_DEFAULT_OPTS, LS_COLORS
 #   50-fzf-tab    zstyles fzf-tab, dépend de 40
 #   60-tools      bashcompinit (terraform, packer, terragrunt, gcloud), direnv, zoxide
+#   65-aliases    alias de listing (eza), après les alias d'oh-my-zsh
 #   70-prompt     starship, doit passer après le chargement d'oh-my-zsh
 #   90-zellij     exec zellij, doit rester en dernier
 #
