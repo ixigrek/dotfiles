@@ -1,4 +1,47 @@
-theme	= Gruvbox Material
+# Palette Gruvbox Material (dark medium), écrite à la main.
+#
+# `theme = Gruvbox Material` est volontairement absent : le thème du même nom
+# livré avec ghostty vient d'un import iTerm2-color-schemes cassé et n'est pas
+# Gruvbox Material. Il pose entre autres palette 1=#ea6926 au lieu de #ea6962
+# (deux chiffres inversés), 2=#c1d041 (vert acide) au lieu de #a9b665,
+# 4=#6da3ec (bleu électrique) au lieu de #7daea3, 6=#fe9d6e (orange) au lieu de
+# l'aqua #89b482, 7=#ffffff au lieu de #d4be98 et un selection-foreground
+# #7cfb70 fluo. Le décalage ne se voyait pas sur starship, eza ou bat, qui
+# émettent du truecolor codé en dur, mais frappait tout ce qui passe par les
+# 16 couleurs ANSI : git diff, grep, man, neovim hors truecolor.
+#
+# Ces valeurs doivent rester alignées sur le tableau GRUVBOX de
+# ~/.zsh/40-theme.zsh, les palettes de ~/.config/starship.toml et de
+# ~/.config/zellij/config.kdl, et sur gruvbox_material_background = "medium"
+# de nvim (d'où bg0 = #282828, et non le #1d2021 de la variante "hard").
+#
+# Normal et bright partagent la même teinte, comme dans le thème amont de
+# sainnhe : gruvbox-material n'a pas de seconde série de couleurs. Seuls
+# black/bright black diffèrent — bright black vaut grey1 #928374 et non un gris
+# de fond, sinon les commentaires et le texte estompé deviennent illisibles.
+background = #282828
+foreground = #d4be98
+cursor-color = #d4be98
+cursor-text = #282828
+selection-background = #45403d
+selection-foreground = #d4be98
+
+palette = 0=#32302f
+palette = 1=#ea6962
+palette = 2=#a9b665
+palette = 3=#d8a657
+palette = 4=#7daea3
+palette = 5=#d3869b
+palette = 6=#89b482
+palette = 7=#d4be98
+palette = 8=#928374
+palette = 9=#ea6962
+palette = 10=#a9b665
+palette = 11=#d8a657
+palette = 12=#7daea3
+palette = 13=#d3869b
+palette = 14=#89b482
+palette = 15=#d4be98
 
 # Police Nerd Font : le prompt starship, les barres zjstatus et les icônes de
 # neovim sont écrits en glyphs Nerd Font. Sans cette ligne ghostty retombe sur

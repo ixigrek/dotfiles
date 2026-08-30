@@ -65,13 +65,14 @@ Après toute écriture dans `~/.zfunc`, purger `~/.zcompdump*` — oh-my-zsh ne 
 
 ## Cohérence visuelle
 
-La palette **Gruvbox Material** est dupliquée à la main dans cinq endroits, sans source unique. Changer une couleur implique de les répercuter partout :
+La palette **Gruvbox Material** est dupliquée à la main dans six endroits, sans source unique. Changer une couleur implique de les répercuter partout :
 
 - `dot_zsh/40-theme.zsh` — tableau `GRUVBOX`, `FZF_DEFAULT_OPTS`, `LS_COLORS`, `EZA_COLORS`
 - `dot_config/starship.toml` — `[palettes.gruvbox_material]`
 - `dot_config/zellij/config.kdl` — codes hex en dur dans les alias `zjstatus-tabs` / `zjstatus-status`
 - `dot_config/bat/themes/gruvbox-material-dark.tmTheme` — nécessite `bat cache --build` après modification
-- `dot_config/nvim/lua/plugins/colorscheme.lua` et `dot_config/ghostty/config.ghostty` (`theme = Gruvbox Material`)
+- `dot_config/nvim/lua/plugins/colorscheme.lua` (`gruvbox_material_background = "medium"`, d'où bg0 `#282828`)
+- `dot_config/ghostty/config.ghostty` — les 16 couleurs ANSI écrites à la main. **Ne pas remettre `theme = Gruvbox Material`** : le thème du même nom livré avec ghostty vient d'un import iTerm2-color-schemes cassé et n'est pas Gruvbox Material (rouge `#ea6926` au lieu de `#ea6962`, vert `#c1d041`, bleu `#6da3ec`, cyan orange `#fe9d6e`, blanc `#ffffff`). Le décalage est invisible sur starship, eza et bat, qui émettent du truecolor codé en dur, et frappe tout ce qui passe par les 16 ANSI : git diff, grep, man, neovim hors truecolor.
 
 Contrainte transverse : ghostty tourne en `background-opacity 0.25` + `macos-glass-regular`. **Aucun fond opaque** dans le prompt, les barres zjstatus ou fzf (`bg:-1`, pas de `bg=` dans les formats zjstatus, pas de segments powerline) — sinon le blur casse.
 
