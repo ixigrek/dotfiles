@@ -1,0 +1,113 @@
+# Fonctions `use` de direnv, chargées avant chaque .envrc.
+# Elles s'exécutent dans le bash de direnv, pas dans zsh : syntaxe bash.
+#
+# Objectif : le contexte cloud vit dans le dépôt, pas dans le shell. On entre
+# dans gcloud/project-a, la configuration gcloud du projet devient active ;
+# on en sort, plus aucun provider n'est actif — ni dans le prompt (starship
+# ne rend ces modules que si la variable est posée, cf.
+# ~/.config/starship.toml) ni pour les CLI.
+#
+# Chaque .envrc doit être autorisé une fois : `direnv allow`.
+
+# use gcloud <configuration>
+#
+# Bascule la configuration gcloud active pour ce shell uniquement, via
+# CLOUDSDK_ACTIVE_CONFIG_NAME — `gcloud config configurations activate`, lui,
+# est global (il réécrit ~/.config/gcloud/active_config). Le magasin de
+# credentials reste partagé : un seul `gcloud auth login` pour tout le monde,
+# seuls project/account/région changent d'une configuration à l'autre.
+#
+# Créer la configuration une fois :
+#   gcloud config configurations create <nom>
+#   gcloud config set project <projet>   # depuis le dossier, une fois le .envrc chargé
+use_gcloud() {
+  local cfg="$1"
+  local root="${CLOUDSDK_CONFIG:-$HOME/.config/gcloud}"
+
+  if [[ -z "$cfg" ]]; then
+    log_error "use gcloud: nom de configuration manquant"
+    return 1
+  fi
+  if [[ ! -f "$root/configurations/config_$cfg" ]]; then
+    log_error "use gcloud: configuration '$cfg' inconnue — gcloud config configurations create $cfg"
+    return 1
+  fi
+
+  # Le prompt affiche le project lu dans ce fichier : direnv doit recharger
+  # quand il change (gcloud config set project).
+  watch_file "$root/configurations/config_$cfg"
+  export CLOUDSDK_ACTIVE_CONFIG_NAME="$cfg"
+}
+
+# use azure <profil>
+#
+# az n'a pas d'équivalent des configurations nommées de gcloud : le seul
+# cloisonnement possible est un répertoire de config par profil, tokens
+# compris. Le premier appel recopie la session courante de ~/.azure pour
+# éviter un nouveau `az login` ; ensuite le profil vit sa vie
+# (`az account set -s <abonnement>` n'affecte que lui).
+use_azure() {
+  local profile="$1"
+  local dir="$HOME/.azure-profiles/$profile"
+
+  if [[ -z "$profile" ]]; then
+    log_error "use azure: nom de profil manquant"
+    return 1
+  fi
+
+  if [[ ! -d "$dir" ]]; then
+    mkdir -p "$dir"
+
+    # Amorçage : on recopie une session déjà ouverte plutôt que d'imposer un
+    # `az login` de plus. ~/.azure est la session de référence ; le
+    # répertoire neutre sert de repli, c'est là qu'atterrit un `az login`
+    # lancé hors projet (cf. ~/.zsh/60-tools.zsh).
+    local src f seeded=""
+    for src in "$HOME/.azure" "$HOME/.azure-profiles/none"; do
+      if [[ -f "$src/msal_token_cache.json" ]]; then
+        for f in azureProfile.json msal_token_cache.json service_principal_entries.json clouds.config config; do
+          if [[ -e "$src/$f" ]]; then
+            cp -p "$src/$f" "$dir/"
+          fi
+        done
+        seeded="$src"
+        break
+      fi
+    done
+
+    if [[ -n "$seeded" ]]; then
+      log_status "azure: profil '$profile' amorcé depuis $seeded — az account set -s <abonnement>"
+    else
+      log_status "azure: profil '$profile' créé dans $dir — az login"
+    fi
+  fi
+
+  # L'abonnement affiché vient de ce fichier.
+  watch_file "$dir/azureProfile.json"
+  export AZURE_CONFIG_DIR="$dir"
+}
+
+# use aws <profil> [région]
+#
+# AWS_PROFILE est déjà une variable par shell, il n'y a rien à cloisonner :
+# il suffit de la poser. Le prompt l'affiche telle quelle (module env_var),
+# donc pas de profil exporté = pas d'affichage.
+use_aws() {
+  local profile="$1" region="$2"
+  local cfg="${AWS_CONFIG_FILE:-$HOME/.aws/config}"
+
+  if [[ -z "$profile" ]]; then
+    log_error "use aws: nom de profil manquant"
+    return 1
+  fi
+  if [[ -f "$cfg" ]] && ! grep -qE "^\[(profile )?${profile}\]" "$cfg"; then
+    log_error "use aws: profil '$profile' absent de $cfg"
+    return 1
+  fi
+
+  export AWS_PROFILE="$profile"
+  if [[ -n "$region" ]]; then
+    export AWS_REGION="$region"
+    export AWS_DEFAULT_REGION="$region"
+  fi
+}

@@ -1,0 +1,169 @@
+# Prompt starship — palette Gruvbox Material, alignée sur ghostty,
+# zjstatus (~/.config/zellij/config.kdl) et ~/.zsh/40-theme.zsh.
+#
+# Aucun fond n'est peint (pas de style "bg:..." ni de segments powerline) :
+# ghostty tourne en background-opacity 0.25 + macos-glass-regular, un fond
+# opaque dans le prompt casserait le blur. Couleurs de texte uniquement.
+#
+# Le format est explicite : seuls les modules listés ci-dessous sont rendus.
+# Les modules de langage (go, rust, python, node...) sont donc absents, et
+# avec eux le scan de répertoire qu'ils imposent à chaque prompt.
+
+format = """$username$hostname$directory$git_branch$git_status$git_state\
+$fill\
+$cmd_duration$kubernetes$terraform${env_var.aws}$azure$gcloud
+$character"""
+
+add_newline = true
+palette = "gruvbox_material"
+
+[palettes.gruvbox_material]
+fg     = "#d4be98"
+grey0  = "#7c6f64"
+grey1  = "#928374"
+red    = "#ea6962"
+orange = "#e78a4e"
+yellow = "#d8a657"
+green  = "#a9b665"
+aqua   = "#89b482"
+blue   = "#7daea3"
+purple = "#d3869b"
+
+# --- Identité ---
+# username et hostname ne s'affichent qu'en SSH ou en root : en local ils
+# sont du bruit, à distance ils disent où tu es.
+[username]
+format = "[$user]($style)@"
+style_user = "green bold"
+style_root = "red bold"
+
+[hostname]
+ssh_only = true
+format = "[$hostname]($style) "
+style = "green bold"
+
+[directory]
+style = "blue bold"
+truncation_length = 4
+truncate_to_repo = true
+read_only = " ro"
+read_only_style = "orange"
+
+# --- Git ---
+[git_branch]
+format = "[$symbol$branch]($style) "
+symbol = " "
+style = "purple bold"
+
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "orange"
+conflicted = "="
+ahead = "↑${count}"
+behind = "↓${count}"
+diverged = "↕↑${ahead_count}↓${behind_count}"
+untracked = "?${count}"
+stashed = "*${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[git_state]
+format = "\\([$state( $progress_current/$progress_total)]($style)\\) "
+style = "red bold"
+
+# --- Contexte d'exécution, poussé à droite par $fill ---
+# C'est la moitié qui compte : savoir sur quel cluster et quel compte on est
+# AVANT de taper la commande.
+[fill]
+symbol = " "
+style = "grey0"
+
+[cmd_duration]
+min_time = 2000
+format = "[ $duration]($style) "
+style = "grey1"
+
+# Le module lit le kubeconfig à chaque prompt. Il ne rend rien tant qu'aucun
+# contexte n'est actif. S'il devenait lent (gros kubeconfig, beaucoup de
+# contextes), le limiter aux dépôts k8s via detect_files / detect_folders.
+[kubernetes]
+disabled = false
+format = "[$symbol$context( \\($namespace\\))]($style) "
+symbol = "☸ "
+style = "aqua bold"
+
+# Un contexte de prod passe en rouge : le prompt doit crier avant le apply.
+[[kubernetes.contexts]]
+context_pattern = ".*(prod|prd).*"
+style = "red bold"
+symbol = "☸ "
+
+[[kubernetes.contexts]]
+context_pattern = ".*(staging|stg|preprod).*"
+style = "yellow bold"
+symbol = "☸ "
+
+# $workspace seul, sans $version : afficher la version lancerait un
+# `terraform version` à chaque prompt.
+[terraform]
+format = "[$symbol$workspace]($style) "
+symbol = "󱁢 "
+style = "purple bold"
+
+# --- Contexte cloud, cloisonné par répertoire ---
+# Règle : hors d'un dépôt qui déclare son contexte (via direnv, cf.
+# ~/.config/direnv/direnvrc), aucun provider ne s'affiche. Aucun de ces trois
+# modules ne sait filtrer par chemin — `detect_folders` n'existe que sur
+# kubernetes et terraform — donc le filtre passe par les variables d'env que
+# direnv pose et retire à chaque cd.
+
+# Le module aws natif n'est pas utilisable ici : il exige que starship
+# reconnaisse des credentials (~/.aws/credentials, cache SSO, AWS_ACCESS_KEY_ID)
+# et `aws login` range les siens dans ~/.aws/login/cache, qu'il ne lit pas —
+# il resterait muet même dans le projet. Et `force_display = true` afficherait
+# la région du profil [default] partout, y compris à $HOME.
+# env_var règle les deux : rendu uniquement si AWS_PROFILE existe, donc
+# uniquement là où direnv l'a posé, et sans le moindre sous-processus.
+[env_var.aws]
+variable = "AWS_PROFILE"
+format = "[$symbol$env_value]($style) "
+symbol = "☁ "
+style = "yellow bold"
+
+# azure ne connaît ni detect_folders ni detect_env_vars : il lit toujours
+# $AZURE_CONFIG_DIR (à défaut ~/.azure) et affiche l'abonnement isDefault.
+# Le cloisonnement se fait donc à la source, pas à l'affichage : 60-tools.zsh
+# pointe la variable sur un répertoire vide, direnv la redirige vers le profil
+# du projet (`use azure <profil>`). Pas de profil, pas d'abonnement, rien.
+[azure]
+disabled = false
+format = "[$symbol$subscription]($style) "
+symbol = "󰠅 "
+style = "blue bold"
+
+# gcloud, lui, accepte detect_env_vars : il ne rend rien tant que la variable
+# n'est pas posée. Sans ça il afficherait la configuration `default` partout.
+# direnv l'exporte par dépôt (`use gcloud <configuration>`) ; le magasin de
+# credentials reste commun, seule la configuration active change —
+# contrairement à CLOUDSDK_CONFIG, qui isolerait aussi les tokens et
+# imposerait un `gcloud auth login` par projet.
+# Note : ce filtre ne porte que sur le prompt. La CLI, hors projet, continue
+# d'utiliser la configuration `default` ; pour qu'elle soit neutre aussi :
+# `gcloud config configurations activate default && gcloud config unset project`.
+[gcloud]
+format = "[$symbol$project]($style) "
+symbol = "󱇶 "
+style = "blue bold"
+detect_env_vars = ["CLOUDSDK_ACTIVE_CONFIG_NAME"]
+
+# --- Curseur ---
+# vimcmd_symbol : zsh-vi-mode est actif, le prompt reflète le mode courant
+# (en plus de l'indicateur NORMAL/INSERT de la barre zjstatus).
+[character]
+success_symbol = "[❯](green bold)"
+error_symbol = "[❯](red bold)"
+vimcmd_symbol = "[❮](yellow bold)"
+# Pas de vimcmd_visual_symbol / vimcmd_replace_symbol : zsh ne remonte que
+# viins et vicmd dans $KEYMAP, ces variantes ne se déclencheraient jamais.
