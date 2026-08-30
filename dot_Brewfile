@@ -42,6 +42,8 @@ brew "cask"
 brew "chezmoi"
 # CLI to install, manage & troubleshoot Kubernetes clusters running Cilium
 brew "cilium-cli"
+# Load/unload environment variables based on $PWD
+brew "direnv"
 # Modern, maintained replacement for ls
 brew "eza"
 # Simple, fast and user-friendly alternative to find

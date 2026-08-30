@@ -1,0 +1,5 @@
+# Fichiers de métadonnées du Finder, semés dans chaque dossier ouvert dans
+# Finder ou parcouru par Quick Look. chezmoi les ignore déjà (tout nom
+# commençant par `.` dans la source est ignoré, sauf `.chezmoi*`), donc ils
+# n'atteignent jamais $HOME — mais rien n'empêche de les commiter.
+.DS_Store
