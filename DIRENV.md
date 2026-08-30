@@ -70,8 +70,14 @@ Deux asymétries à garder en tête, elles expliquent la forme du code :
 brew install direnv        # le hook de 60-tools.zsh est conditionnel : sans direnv, rien ne se passe
 gcloud auth login          # magasin de credentials commun à toutes les configurations
 az login                   # alimente ~/.azure, la session de référence recopiée par `use azure`
-aws configure sso          # ou `aws configure --profile <profil>`
+aws login                  # CLI v2 : session navigateur, credentials dans ~/.aws/login/cache
 ```
+
+Pour AWS, `aws login` est le chemin qui marche sur un compte isolé. `aws
+configure sso` est réservé aux organisations ayant activé **IAM Identity
+Center** : sa première question est l'URL du portail
+(`https://d-xxxxxxxxxx.awsapps.com/start`), qui n'existe que dans ce cas — sans
+Identity Center on reste bloqué sur ce prompt, sans rien à y entrer (cf. §6).
 
 ---
 
@@ -174,6 +180,20 @@ az account set -s "Abonnement Staging"
 
 n'affecte que ce profil — `~/.azure` et les autres profils ne bougent pas.
 
+Un abonnement visible dans le portail mais absent de `az account list` est
+presque toujours un cache : `az login` fige la liste dans `azureProfile.json`,
+et `az account list` la relit sans appel réseau. Un abonnement créé depuis, ou
+un rôle accordé depuis, n'y figure pas. `--refresh` force le rappel de l'API :
+
+```bash
+az account list --refresh -o table
+```
+
+À rejouer **dans chaque profil** : `use azure` recopie `azureProfile.json` à
+l'amorçage, donc un profil créé avant garde l'instantané périmé, et rafraîchir
+`~/.azure` ne s'y propage pas. Depuis le dossier du projet, `AZURE_CONFIG_DIR`
+est déjà posé — la commande vise le bon profil d'elle-même.
+
 Hors projet, `AZURE_CONFIG_DIR` pointe sur `~/.azure-profiles/none`, un
 répertoire vide : `az` n'a aucune session, et le prompt n'affiche rien. C'est
 aussi là qu'atterrit un `az login` lancé hors projet, ce qui est sans
@@ -193,9 +213,36 @@ Rien à cloisonner, `AWS_PROFILE` est déjà une variable par shell. Le profil d
 exister dans `~/.aws/config` (`use aws` le vérifie et refuse sinon) :
 
 ```bash
-aws configure sso --profile staging      # ou éditer ~/.aws/config
-echo 'use aws staging eu-west-3' >> .envrc   # la région est optionnelle
+aws configure set region eu-west-3 --profile staging   # crée la section [profile staging]
+aws login --profile staging                            # y attache une session
+echo 'use aws staging eu-west-3' >> .envrc             # la région est optionnelle
 direnv allow
+```
+
+Le `configure set` d'abord n'est pas décoratif : c'est lui qui écrit la section,
+et `use aws` refuse un profil que `~/.aws/config` ne déclare pas.
+
+Trois façons d'alimenter un profil, selon ce dont on dispose — `aws configure
+sso` n'est **pas** le cas général, il suppose une organisation :
+
+| Situation | Commande |
+| --- | --- |
+| Compte isolé, pas d'organisation | `aws login --profile staging` (CLI v2, session navigateur) |
+| Organisation avec IAM Identity Center | `aws configure sso --profile staging` — demande la start URL du portail |
+| Clés d'accès d'un utilisateur IAM | `aws configure --profile staging` |
+
+**La frontière d'isolation d'AWS est le compte**, pas le projet (gcloud) ni
+l'abonnement (Azure). Deux profils sur un même compte et une même identité
+n'isolent donc rien : le prompt afficherait `staging` sans qu'aucun droit ne
+change. Pour que le mécanisme ait ici la même valeur que chez les deux autres
+providers, il faut soit un second compte, soit deux rôles IAM assumés depuis
+celui-ci :
+
+```ini
+[profile staging]
+role_arn = arn:aws:iam::000000000000:role/staging
+source_profile = default
+region = eu-west-3
 ```
 
 La région, si elle est donnée, pose `AWS_REGION` **et** `AWS_DEFAULT_REGION` :
@@ -291,6 +338,8 @@ aws configure list-profiles
 | `use gcloud: configuration 'x' sans project` | garde-fou volontaire : `CLOUDSDK_ACTIVE_CONFIG_NAME=x gcloud config set project <projet>` (cf. étape 2). |
 | `use aws: profil 'x' absent de ~/.aws/config` | le profil n'est pas déclaré ; attention, la section s'écrit `[profile x]` dans `config` mais `[x]` dans `credentials`. |
 | Le contexte est bon mais le prompt n'affiche rien | la variable est-elle **exportée** ? Voir les pièges ci-dessous. Pour gcloud, vérifier que le module lit bien un `project` dans `~/.config/gcloud/configurations/config_<nom>`. |
+| `az account list` n'affiche pas un abonnement pourtant visible dans le portail | liste figée au login : `az account list --refresh`, depuis le dossier du projet pour viser son profil (cf. §5). |
+| `aws configure sso` bloque sur `SSO start URL` | il suppose IAM Identity Center. Sans organisation, `aws login --profile <profil>` (cf. §6). |
 | Le prompt affiche un abonnement Azure partout | `AZURE_CONFIG_DIR` ne pointe plus sur le répertoire vide — un `export` traînant, ou `~/.azure-profiles/none` supprimé. |
 | Une variable persiste après être sorti du dossier | elle a été posée à la main dans le shell, pas par direnv : direnv ne retire que ce qu'il a posé. |
 | Voir ce que direnv exporte réellement | `direnv export zsh \| tr ';' '\n'` |
@@ -319,6 +368,13 @@ Un shell propre pour comparer : `NO_ZELLIJ=1 zsh -i`.
 - **Terraform et les SDK ignorent la configuration gcloud** (cf. étape 5). Une
   CLI qui pointe sur staging n'empêche pas un `terraform apply` de partir sur
   autre chose.
+- **`gcloud auth login` écrit dans la configuration active.** Lancé depuis un
+  dossier de projet, il rattache le compte à *sa* configuration — c'est la bonne
+  façon d'associer un deuxième compte à un projet ; lancé depuis `~`, il modifie
+  `default`. Un `gcloud config list` après coup lève le doute.
 - **Les tokens Azure sont dupliqués par profil.** Un `az login` dans `~/.azure`
   ne rafraîchit pas les profils déjà amorcés ; en cas de token expiré, faire le
-  `az login` depuis le dossier du projet.
+  `az login` depuis le dossier du projet. Même logique pour la liste des
+  abonnements, qui est un cache par profil (cf. §5).
+- **Un profil AWS n'isole rien à lui seul.** Sans second compte ni rôle distinct,
+  c'est un libellé de prompt et rien d'autre (cf. §6).
