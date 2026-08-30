@@ -46,7 +46,7 @@ style_root = "red bold"
 
 [hostname]
 ssh_only = true
-ssh_symbol = " "
+ssh_symbol = " "
 format = "[$ssh_symbol$hostname]($style) "
 style = "green bold"
 
@@ -60,7 +60,7 @@ read_only_style = "orange"
 # --- Git ---
 [git_branch]
 format = "[$symbol$branch]($style) "
-symbol = " "
+symbol = " "
 style = "purple bold"
 
 [git_status]
@@ -87,19 +87,19 @@ style = "red bold"
 # à chaque prompt ne se justifie pas. Chaque module reste sur sa détection de
 # fichiers par défaut (go.mod, package.json, Cargo.toml...).
 [c]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "blue bold"
 
 # cpp est désactivé par défaut dans starship, contrairement à c.
 [cpp]
 disabled = false
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "blue bold"
 
 [golang]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "aqua bold"
 
@@ -109,89 +109,89 @@ format = "[$symbol]($style)"
 style = "orange bold"
 
 [zig]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "orange bold"
 
 [swift]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "orange bold"
 
 [java]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "red bold"
 
 [kotlin]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "purple bold"
 
 [scala]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "red bold"
 
 [dotnet]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "purple bold"
 
 [elixir]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "purple bold"
 
 [haskell]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "purple bold"
 
 [ocaml]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "orange bold"
 
 [nodejs]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "green bold"
 
 [deno]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "aqua bold"
 
 [bun]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "purple bold"
 
 # $virtualenv vient de $VIRTUAL_ENV : c'est une lecture d'environnement, pas un
 # sous-processus. Le nom de l'env vaut la place qu'il prend.
 [python]
-symbol = " "
+symbol = " "
 format = "[$symbol($virtualenv )]($style)"
 style = "yellow bold"
 
 [ruby]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "red bold"
 
 [php]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "purple bold"
 
 [lua]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "blue bold"
 
 [dart]
-symbol = " "
+symbol = " "
 format = "[$symbol]($style)"
 style = "blue bold"
 
@@ -199,18 +199,18 @@ style = "blue bold"
 # Ces trois-là ne détectent rien sur le disque : conda et nix_shell lisent une
 # variable d'environnement, docker_context le contexte docker courant.
 [conda]
-symbol = " "
+symbol = " "
 format = "[$symbol$environment]($style) "
 style = "green bold"
 
 [nix_shell]
-symbol = " "
+symbol = " "
 format = "[$symbol$state( \\($name\\))]($style) "
 style = "blue bold"
 
 # Muet sur le contexte `default` : ne s'affiche que si tu as basculé ailleurs.
 [docker_context]
-symbol = " "
+symbol = " "
 format = "[$symbol$context]($style) "
 style = "blue bold"
 
@@ -250,7 +250,7 @@ symbol = "󱃾 "
 # `terraform version` à chaque prompt.
 [terraform]
 format = "[$symbol$workspace]($style) "
-symbol = " "
+symbol = " "
 style = "purple bold"
 
 # --- Contexte cloud, cloisonné par répertoire ---
@@ -271,7 +271,7 @@ style = "purple bold"
 [env_var.aws]
 variable = "AWS_PROFILE"
 format = "[$symbol$env_value]($style) "
-symbol = " "
+symbol = " "
 style = "yellow bold"
 
 # azure ne connaît ni detect_folders ni detect_env_vars : il lit toujours
@@ -282,7 +282,7 @@ style = "yellow bold"
 [azure]
 disabled = false
 format = "[$symbol$subscription]($style) "
-symbol = " "
+symbol = " "
 style = "blue bold"
 
 # gcloud, lui, accepte detect_env_vars : il ne rend rien tant que la variable

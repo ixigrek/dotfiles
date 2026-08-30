@@ -74,6 +74,23 @@ La palette **Gruvbox Material** est dupliquée à la main dans six endroits, san
 - `dot_config/nvim/lua/plugins/colorscheme.lua` (`gruvbox_material_background = "medium"`, d'où bg0 `#282828`)
 - `dot_config/ghostty/config.ghostty` — les 16 couleurs ANSI écrites à la main. **Ne pas remettre `theme = Gruvbox Material`** : le thème du même nom livré avec ghostty vient d'un import iTerm2-color-schemes cassé et n'est pas Gruvbox Material (rouge `#ea6926` au lieu de `#ea6962`, vert `#c1d041`, bleu `#6da3ec`, cyan orange `#fe9d6e`, blanc `#ffffff`). Le décalage est invisible sur starship, eza et bat, qui émettent du truecolor codé en dur, et frappe tout ce qui passe par les 16 ANSI : git diff, grep, man, neovim hors truecolor.
 
+Les glyphs Nerd Font de `dot_config/starship.toml` sont fragiles : ils vivent
+dans le Private Use Area (`U+E000`–`U+F8FF` pour la plupart, `U+F0000`+ pour les
+icônes Material Design) et un éditeur ou un pipeline qui normalise l'UTF-8 les
+remplace silencieusement par rien — le fichier reste valide, `symbol = " "` ne
+contient plus qu'une espace et le prompt affiche un vide parfait. Ne pas les
+retaper à la main : les reprendre de `starship preset nerd-font-symbols`, puis
+vérifier qu'aucun n'est vide.
+
+```bash
+python3 -c "
+import re
+s = open('dot_config/starship.toml', encoding='utf-8').read()
+print([(m[0], m[1]) for m in re.findall(r'^(symbol|ssh_symbol|read_only)\\s*=\\s*\"(.*)\"', s, re.M)
+       if not any(0xE000 <= ord(c) <= 0xF8FF or ord(c) >= 0xF0000 for c in m[1])])
+"   # seul [fill] doit ressortir : son symbole EST une espace
+```
+
 Contrainte transverse : ghostty tourne en `background-opacity 0.25` + `macos-glass-regular`. **Aucun fond opaque** dans le prompt, les barres zjstatus ou fzf (`bg:-1`, pas de `bg=` dans les formats zjstatus, pas de segments powerline) — sinon le blur casse.
 
 ## Contexte cloud par répertoire
