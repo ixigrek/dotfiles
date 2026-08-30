@@ -54,6 +54,8 @@ brew "ffmpeg-full"
 brew "fish"
 # Command-line fuzzy finder written in Go
 brew "fzf"
+# Replace zsh completion selection menu with fzf
+brew "fzf-tab"
 # GNU compiler collection
 brew "gcc"
 # GitHub command-line tool
@@ -114,6 +116,8 @@ brew "rust"
 brew "scw"
 # Editor of encrypted files
 brew "sops"
+# Cross-shell prompt for astronauts
+brew "starship"
 # Opinionated Lua code formatter
 brew "stylua"
 # CLI for out-of-band management of Kubernetes nodes created by Talos
