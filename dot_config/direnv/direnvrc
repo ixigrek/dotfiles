@@ -33,6 +33,17 @@ use_gcloud() {
     return 1
   fi
 
+  # Le test ci-dessus ne porte que sur l'existence du fichier : une
+  # configuration créée mais jamais renseignée le passerait sans bruit, et
+  # chaque commande gcloud réclamerait ensuite un projet — pendant que le
+  # prompt afficherait un symbole nu, faute de project à rendre.
+  # Le réglage se fait avec la variable en préfixe : le .envrc ayant échoué,
+  # elle n'est pas dans l'environnement.
+  if ! grep -qE '^[[:space:]]*project[[:space:]]*=' "$root/configurations/config_$cfg"; then
+    log_error "use gcloud: configuration '$cfg' sans project — CLOUDSDK_ACTIVE_CONFIG_NAME=$cfg gcloud config set project <projet>"
+    return 1
+  fi
+
   # Le prompt affiche le project lu dans ce fichier : direnv doit recharger
   # quand il change (gcloud config set project).
   watch_file "$root/configurations/config_$cfg"
