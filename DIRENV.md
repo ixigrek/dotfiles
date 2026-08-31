@@ -1,8 +1,8 @@
 # Sessions cloud par répertoire
 
 Tutoriel du mécanisme `direnv` de ce dépôt : comment le contexte cloud
-(gcloud, Azure, AWS) devient une propriété du répertoire courant, comment en
-créer un, et comment le gérer au quotidien.
+(gcloud, Azure, AWS, Kubernetes) devient une propriété du répertoire courant,
+comment en créer un, et comment le gérer au quotidien.
 
 Résumé et table des fichiers : [README](README.md#contexte-cloud-par-répertoire-direnv).
 
@@ -10,16 +10,19 @@ Résumé et table des fichiers : [README](README.md#contexte-cloud-par-répertoi
 
 ## 1. Le problème
 
-Les trois CLI cloud gardent un contexte **global**, partagé par tous les
-terminaux et persistant entre les sessions :
+Les CLI cloud gardent un contexte **global**, partagé par tous les terminaux
+et persistant entre les sessions :
 
 - `gcloud config set project X` réécrit `~/.config/gcloud/configurations/config_default` ;
 - `az account set -s X` réécrit `~/.azure/azureProfile.json` ;
-- `aws configure set` réécrit `~/.aws/config`.
+- `aws configure set` réécrit `~/.aws/config` ;
+- `kubectl config use-context X` réécrit le `current-context` de `~/.kube/config`.
 
 Deux conséquences. La première est un risque : on bascule sur la prod pour une
 commande, on oublie de revenir, et le `terraform apply` du lendemain part sur
-le mauvais projet. La seconde est que le prompt ne peut pas aider — un module
+le mauvais projet. Kubernetes est le cas extrême : la bascule vaut
+immédiatement pour **tous les terminaux déjà ouverts**, y compris celui d'à
+côté qui croit encore être sur la préproduction. La seconde est que le prompt ne peut pas aider — un module
 qui lit le contexte global affiche *toujours* quelque chose, y compris dans
 `~`, où ça ne veut rien dire.
 
@@ -51,6 +54,7 @@ d'information indépendante : ce qu'il affiche est ce que la CLI utilisera.
 | gcloud | `CLOUDSDK_ACTIVE_CONFIG_NAME` | la configuration nommée : projet, compte, région. **Pas** les credentials, qui restent communs | le `project` |
 | azure | `AZURE_CONFIG_DIR` | tout le répertoire de config, tokens compris | l'abonnement `isDefault` |
 | aws | `AWS_PROFILE` (+ `AWS_REGION`) | rien : la variable est déjà propre au shell | la valeur brute de `AWS_PROFILE` |
+| kube | `KUBECONFIG` | la sélection seule — contexte actif et namespace ; clusters et credentials restent communs | le contexte et le namespace |
 
 Deux asymétries à garder en tête, elles expliquent la forme du code :
 
@@ -63,6 +67,11 @@ Deux asymétries à garder en tête, elles expliquent la forme du code :
   pas d'un filtre d'affichage mais du **répertoire vide**
   `~/.azure-profiles/none` posé par `60-tools.zsh`. Ne pas y toucher sans
   toucher au module.
+- **kube** est le seul à ne pas se contenter d'une variable : `KUBECONFIG`
+  désigne des fichiers, pas un contexte. `use kube` en fabrique donc un — un
+  *recouvrement* posé devant `~/.kube/config`, qui ne porte que la sélection
+  (cf. §7). Son module starship, lui, filtre nativement, par
+  `detect_env_vars = ["KUBECONFIG"]`.
 
 ## 3. Prérequis, une fois par machine
 
@@ -71,6 +80,7 @@ brew install direnv        # le hook de 60-tools.zsh est conditionnel : sans dir
 gcloud auth login          # magasin de credentials commun à toutes les configurations
 az login                   # alimente ~/.azure, la session de référence recopiée par `use azure`
 aws login                  # CLI v2 : session navigateur, credentials dans ~/.aws/login/cache
+kubectl config get-contexts   # magasin commun : ~/.kube/config, alimenté par les get-credentials (cf. §7)
 ```
 
 Pour AWS, `aws login` est le chemin qui marche sur un compte isolé. `aws
@@ -256,15 +266,131 @@ aws sts get-caller-identity
 
 ---
 
-## 7. Un `.envrc` ne sert pas qu'au cloud
+## 7. Tutoriel : un contexte Kubernetes
+
+### Le mécanisme
+
+`KUBECONFIG` ne désigne pas un contexte mais une **liste de fichiers
+fusionnés**, dans laquelle le premier gagne pour chaque entrée. `use kube`
+exploite cette règle : il glisse devant `~/.kube/config` un fichier de
+*recouvrement* qui ne porte que la sélection du dépôt.
+
+```
+KUBECONFIG=~/.kube/direnv/staging@equipe-x.yaml:~/.kube/config
+             │                                    │
+             │                                    └─ clusters, users, tokens : communs
+             └─ contexte actif + namespace : propres au dépôt
+```
+
+```yaml
+# ~/.kube/direnv/staging@equipe-x.yaml — reconstruit à chaque chargement
+apiVersion: v1
+kind: Config
+current-context: staging
+contexts:
+- name: staging
+  context:
+    cluster: c-staging     # de simples *noms*, résolus dans ~/.kube/config
+    user: u-me
+    namespace: equipe-x
+```
+
+Comme pour gcloud, rien n'est dupliqué : un `get-credentials` par cluster
+alimente tous les dépôts.
+
+### Étape 1 — alimenter `~/.kube/config`, une fois par cluster
+
+```bash
+gcloud container clusters get-credentials staging --region europe-west1   # GKE
+az aks get-credentials -g <groupe> -n staging                             # AKS
+aws eks update-kubeconfig --name staging                                  # EKS
+talosctl kubeconfig                                                       # Talos
+```
+
+**Depuis `~`, pas depuis un dossier de projet.** Ces commandes écrivent dans le
+*premier* fichier de `KUBECONFIG` : lancées dans un dépôt, elles rempliraient
+le recouvrement — qui est reconstruit au chargement suivant, emportant le
+cluster tout juste ajouté. Au besoin, forcer la cible :
+
+```bash
+KUBECONFIG=~/.kube/config aws eks update-kubeconfig --name staging
+```
+
+### Étape 2 — le `.envrc`
+
+```bash
+cd ~/work/staging
+kubectl config get-contexts                  # le nom exact du contexte
+echo 'use kube staging' >> .envrc
+direnv allow
+```
+
+Le namespace par défaut du dépôt se donne en second argument — sinon celui du
+contexte d'origine est reconduit :
+
+```bash
+use kube staging equipe-paiements
+```
+
+Un contexte inconnu fait échouer le chargement, avec le message qui va bien :
+sans ce garde-fou, le prompt afficherait paisiblement le nom d'un cluster
+inatteignable et l'erreur ne sortirait qu'à la première commande.
+
+### Étape 3 — vérifier
+
+```bash
+kubectl config current-context               # staging
+kubectl config view --minify                 # contexte, cluster et namespace résolus
+kubectl config get-contexts                  # tous restent visibles : le magasin est commun
+```
+
+### Ce qui reste dans le dépôt
+
+Les deux commandes qui basculent quoi que ce soit n'atteignent que le
+recouvrement, jamais `~/.kube/config` :
+
+```bash
+kubectl config use-context prod                        # bascule ponctuelle
+kubectl config set-context --current --namespace=dev   # ce que fait kubens
+```
+
+C'est la raison d'être de la copie du contexte dans le recouvrement :
+`kubectl config` écrit dans le fichier où l'entrée modifiée est *définie*. Sans
+elle, le namespace du dépôt irait s'inscrire dans `~/.kube/config`, où il
+vaudrait pour tous les autres.
+
+Ces deux bascules tiennent le temps de la session : le recouvrement est
+reconstruit depuis le `.envrc` à chaque rechargement de direnv, donc sortir du
+dossier et y revenir rétablit le contexte déclaré. Pour un changement durable,
+c'est le `.envrc` qu'on édite — puis `direnv allow`.
+
+### Étape 4 — hors projet, ne rien laisser d'actif
+
+Le prompt est déjà muet hors projet (`detect_env_vars`), mais `kubectl` sans
+`KUBECONFIG` continue d'utiliser le `current-context` de `~/.kube/config`.
+Même remède que pour le `project` de la configuration gcloud `default` : le
+retirer une fois, depuis `~`.
+
+```bash
+kubectl config unset current-context
+```
+
+`kubectl` réclame alors un contexte explicite partout ailleurs que dans un
+dépôt — ce qui est exactement le but. Les `get-credentials` ultérieurs en
+reposent un : à refaire de temps en temps.
+
+---
+
+## 8. Un `.envrc` ne sert pas qu'au cloud
 
 Le même fichier porte tout ce qui doit valoir « dans ce dépôt seulement » :
 
 ```bash
 use gcloud staging
+use kube staging
 export GOOGLE_CLOUD_PROJECT=staging-000000
 
-export KUBECONFIG="$PWD/.kube/config"        # kubectl cloisonné, pas de contexte global
+export TALOSCONFIG="$PWD/talosconfig"        # même idée, pour talosctl
 export TF_VAR_environment=staging
 export TF_CLI_ARGS_plan="-lock-timeout=5m"
 path_add PATH ./bin                          # outils du dépôt en tête de PATH
@@ -283,12 +409,12 @@ contexte suit le clone. Les secrets vont dans `.envrc.local`, ajouté au
 
 ---
 
-## 8. Gérer au quotidien
+## 9. Gérer au quotidien
 
 **Voir ce qui est actif** — le prompt le dit, mais en cas de doute :
 
 ```bash
-env | grep -E 'CLOUDSDK_ACTIVE_CONFIG_NAME|AZURE_CONFIG_DIR|AWS_PROFILE|AWS_REGION'
+env | grep -E 'CLOUDSDK_ACTIVE_CONFIG_NAME|AZURE_CONFIG_DIR|AWS_PROFILE|AWS_REGION|KUBECONFIG'
 direnv status            # .envrc trouvé, autorisé ou non, état du chargement
 ```
 
@@ -325,11 +451,12 @@ direnv exec ~/work/prod gcloud compute instances list
 gcloud config configurations list
 ls ~/.azure-profiles
 aws configure list-profiles
+kubectl config get-contexts
 ```
 
 ---
 
-## 9. Déboguer
+## 10. Déboguer
 
 | Symptôme | Piste |
 | --- | --- |
@@ -339,6 +466,10 @@ aws configure list-profiles
 | `use aws: profil 'x' absent de ~/.aws/config` | le profil n'est pas déclaré ; attention, la section s'écrit `[profile x]` dans `config` mais `[x]` dans `credentials`. |
 | Le contexte est bon mais le prompt n'affiche rien | la variable est-elle **exportée** ? Voir les pièges ci-dessous. Pour gcloud, vérifier que le module lit bien un `project` dans `~/.config/gcloud/configurations/config_<nom>`. |
 | `az account list` n'affiche pas un abonnement pourtant visible dans le portail | liste figée au login : `az account list --refresh`, depuis le dossier du projet pour viser son profil (cf. §5). |
+| `use kube: contexte 'x' inconnu` | le contexte n'est pas dans `~/.kube/config` : `kubectl config get-contexts` pour le nom exact (celui d'EKS est un ARN complet), sinon rejouer le `get-credentials` **depuis `~`**. |
+| Un cluster ajouté par `get-credentials` a disparu | la commande a été lancée depuis un dépôt : elle a écrit dans le recouvrement, que le chargement suivant a reconstruit. Recommencer depuis `~` (cf. §7). |
+| Le namespace choisi dans le dépôt revient à celui du `.envrc` | comportement voulu : le recouvrement est reconstruit à chaque rechargement de direnv. Pour le fixer, second argument de `use kube`. |
+| `kubectl` marche encore hors projet | `~/.kube/config` garde son `current-context` : `kubectl config unset current-context`, depuis `~` (cf. §7, étape 4). |
 | `aws configure sso` bloque sur `SSO start URL` | il suppose IAM Identity Center. Sans organisation, `aws login --profile <profil>` (cf. §6). |
 | Le prompt affiche un abonnement Azure partout | `AZURE_CONFIG_DIR` ne pointe plus sur le répertoire vide — un `export` traînant, ou `~/.azure-profiles/none` supprimé. |
 | Une variable persiste après être sorti du dossier | elle a été posée à la main dans le shell, pas par direnv : direnv ne retire que ce qu'il a posé. |
@@ -348,7 +479,7 @@ Un shell propre pour comparer : `NO_ZELLIJ=1 zsh -i`.
 
 ---
 
-## 10. Pièges
+## 11. Pièges
 
 - **`export` obligatoire.** `FOO=bar` dans un `.envrc` n'est qu'une variable
   bash locale ; direnv ne propage que ce qui est exporté.
@@ -378,3 +509,21 @@ Un shell propre pour comparer : `NO_ZELLIJ=1 zsh -i`.
   abonnements, qui est un cache par profil (cf. §5).
 - **Un profil AWS n'isole rien à lui seul.** Sans second compte ni rôle distinct,
   c'est un libellé de prompt et rien d'autre (cf. §6).
+- **`kubectl config use-context` reste à proscrire hors d'un dépôt.** Dedans, il
+  n'écrit que dans le recouvrement ; dehors, il rebascule `~/.kube/config` pour
+  tous les terminaux ouverts, sans que rien ne le signale.
+- **Les `get-credentials` se lancent depuis `~`** — ils écrivent dans le premier
+  fichier de `KUBECONFIG` (cf. §7, étape 1).
+- **Le recouvrement est partagé** par les dépôts qui déclarent le même couple
+  contexte/namespace, et vit dans `~/.kube/direnv`, pas dans le dépôt. Rien à
+  ajouter au `.gitignore` ; en contrepartie, ne rien y écrire à la main : il est
+  reconstruit.
+- **Helm, k9s, flux et cilium lisent `KUBECONFIG`** comme kubectl : ils
+  héritent du cloisonnement sans rien à configurer.
+- **Le provider Terraform `kubernetes`, non.** Il lit `KUBE_CONFIG_PATH` /
+  `KUBE_CONFIG_PATHS`, jamais `KUBECONFIG` — comme il ignore la configuration
+  gcloud. Dans un dépôt d'infra, le lui répercuter :
+  ```bash
+  use kube staging
+  export KUBE_CONFIG_PATHS="$KUBECONFIG"   # même syntaxe que kubectl, `:` séparateur
+  ```

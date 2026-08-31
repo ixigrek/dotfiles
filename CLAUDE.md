@@ -95,7 +95,9 @@ Contrainte transverse : ghostty tourne en `background-opacity 0.25` + `macos-gla
 
 ## Contexte cloud par répertoire
 
-`dot_config/direnv/direnvrc` fournit `use gcloud|azure|aws`, qui cloisonnent le contexte cloud par dépôt via variables d'environnement (`CLOUDSDK_ACTIVE_CONFIG_NAME`, `AZURE_CONFIG_DIR`, `AWS_PROFILE`). Le prompt starship est le miroir de ce mécanisme : les modules `gcloud`, `azure` et `env_var.aws` ne rendent quelque chose que si la variable correspondante existe. Les deux fichiers se lisent ensemble — modifier l'un sans l'autre casse le filtrage (le module `azure` en particulier n'a pas de `detect_env_vars` : sa neutralité repose sur le répertoire vide posé par `60-tools.zsh`).
+`dot_config/direnv/direnvrc` fournit `use gcloud|azure|aws|kube`, qui cloisonnent le contexte cloud par dépôt via variables d'environnement (`CLOUDSDK_ACTIVE_CONFIG_NAME`, `AZURE_CONFIG_DIR`, `AWS_PROFILE`, `KUBECONFIG`). Le prompt starship est le miroir de ce mécanisme : les modules `gcloud`, `azure`, `env_var.aws` et `kubernetes` ne rendent quelque chose que si la variable correspondante existe. Les deux fichiers se lisent ensemble — modifier l'un sans l'autre casse le filtrage (le module `azure` en particulier n'a pas de `detect_env_vars` : sa neutralité repose sur le répertoire vide posé par `60-tools.zsh`).
+
+`use kube` est le seul à fabriquer un fichier : `KUBECONFIG` désigne des fichiers fusionnés (le premier gagne pour chaque entrée), donc la sélection du dépôt est un *recouvrement* posé devant `~/.kube/config` dans `~/.kube/direnv/`, reconstruit à chaque chargement. Il recopie le contexte, pas seulement le `current-context` : `kubectl config` écrit dans le fichier où l'entrée modifiée est définie, sans cette copie un `set-context --namespace` du dépôt atterrirait dans le kubeconfig global.
 
 ## Zellij
 

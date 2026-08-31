@@ -226,11 +226,18 @@ min_time = 2000
 format = "[ $duration]($style) "
 style = "grey1"
 
-# Le module lit le kubeconfig à chaque prompt. Il ne rend rien tant qu'aucun
-# contexte n'est actif. S'il devenait lent (gros kubeconfig, beaucoup de
-# contextes), le limiter aux dépôts k8s via detect_files / detect_folders.
+# Même règle que les trois modules cloud ci-dessous, mais le filtre est ici
+# natif : detect_env_vars limite le rendu aux shells où KUBECONFIG est posé,
+# c'est-à-dire aux dépôts dont le .envrc appelle `use kube`
+# (~/.config/direnv/direnvrc). Sans lui le module retomberait sur
+# ~/.kube/config et afficherait son current-context partout, y compris dans ~,
+# où il ne veut rien dire — et où il mentirait sur ce que kubectl ferait
+# vraiment si le contexte du dépôt n'est pas celui du fichier global.
+# Effet de bord utile : plus aucun kubeconfig lu hors projet, donc rien à
+# optimiser côté latence de prompt.
 [kubernetes]
 disabled = false
+detect_env_vars = ["KUBECONFIG"]
 format = "[$symbol$context( \\($namespace\\))]($style) "
 symbol = "󱃾 "
 style = "aqua bold"

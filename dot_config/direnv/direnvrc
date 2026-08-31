@@ -122,3 +122,97 @@ use_aws() {
     export AWS_DEFAULT_REGION="$region"
   fi
 }
+
+# use kube <contexte> [namespace]
+#
+# `kubectl config use-context` est global, et c'est le pire des quatre : il
+# réécrit le current-context de ~/.kube/config, donc celui de tous les
+# terminaux déjà ouverts. Rien ne le signale, et le `kubectl delete` suivant
+# part sur le cluster d'à côté.
+#
+# KUBECONFIG accepte une liste de fichiers fusionnés, où le premier gagne pour
+# chaque entrée. On glisse donc devant ~/.kube/config un fichier de
+# recouvrement qui ne porte que la sélection du dépôt : le contexte actif, et
+# une copie de sa définition — les *noms* de cluster et de user, pas les
+# credentials, qui restent dans ~/.kube/config. Un seul `get-credentials`
+# alimente ainsi tous les dépôts, comme un seul `gcloud auth login`.
+#
+# Recopier le contexte plutôt que le seul current-context n'est pas un excès de
+# zèle : `kubectl config` écrit dans le fichier où l'entrée modifiée est
+# *définie*. Sans cette copie, `set-context --current --namespace=x` (kubens et
+# consorts) irait écrire le namespace du dépôt dans ~/.kube/config, où il
+# vaudrait pour tout le monde. Avec elle, les deux commandes qui basculent quoi
+# que ce soit n'atteignent que le recouvrement :
+#   - `use-context` écrit dans le premier fichier portant un current-context ;
+#   - `set-context` écrit là où le contexte est défini.
+#
+# Le recouvrement est reconstruit depuis les arguments à chaque chargement : le
+# .envrc est la source de vérité. Une bascule faite à la main tient donc le
+# temps de la session, et sortir/rentrer dans le dossier rétablit le contexte
+# du dépôt.
+use_kube() {
+  local ctx="$1" ns="$2"
+  local base="${KUBECONFIG:-$HOME/.kube/config}"
+  local main="${base%%:*}"
+  local dir="$HOME/.kube/direnv"
+
+  if [[ -z "$ctx" ]]; then
+    log_error "use kube: nom de contexte manquant"
+    return 1
+  fi
+  if ! has kubectl; then
+    log_error "use kube: kubectl introuvable — brew install kubernetes-cli"
+    return 1
+  fi
+  if [[ ! -f "$main" ]]; then
+    log_error "use kube: aucun kubeconfig dans $main — <cloud> get-credentials, depuis ~"
+    return 1
+  fi
+
+  # Un seul appel à kubectl : le .envrc est rejoué à chaque cd dans le dossier.
+  # Et un contexte absent doit être refusé ici — sinon rien ne bronche au
+  # chargement, le prompt affiche tranquillement le nom d'un cluster
+  # inatteignable, et l'erreur ne sort qu'à la première commande.
+  local cluster user gns
+  { read -r cluster; read -r user; read -r gns; } < <(
+    KUBECONFIG="$base" kubectl config view -o \
+      "jsonpath={range .contexts[?(@.name=='$ctx')]}{.context.cluster}{\"\n\"}{.context.user}{\"\n\"}{.context.namespace}{\"\n\"}{end}" 2>/dev/null
+  )
+  if [[ -z "$cluster" ]]; then
+    log_error "use kube: contexte '$ctx' inconnu — kubectl config get-contexts"
+    return 1
+  fi
+  # Sans namespace demandé, on reconduit celui du contexte d'origine : la copie
+  # masque l'entrée globale, ne pas le reporter le remplacerait par "default".
+  ns="${ns:-$gns}"
+
+  local content="apiVersion: v1
+kind: Config
+current-context: $ctx
+contexts:
+- name: $ctx
+  context:
+    cluster: $cluster
+    user: $user${ns:+
+    namespace: $ns}
+"
+
+  # Nom de fichier assaini : les contextes EKS sont des ARN (`arn:aws:eks:...`,
+  # avec des `/`), et `:` est justement le séparateur de KUBECONFIG.
+  local key="${ctx}${ns:+@$ns}"
+  local overlay="$dir/${key//[^A-Za-z0-9._@-]/_}.yaml"
+
+  mkdir -p "$dir"
+  # Le recouvrement est partagé par les dépôts qui demandent le même couple
+  # contexte/namespace ; comme il est entièrement dérivé des arguments, le
+  # reconstruire est idempotent. On ne réécrit que s'il a bougé — une bascule
+  # faite à la main, typiquement.
+  if [[ ! -f "$overlay" || "$(cat "$overlay")" != "$content" ]]; then
+    printf '%s' "$content" > "$overlay"
+  fi
+
+  # cluster, user et namespace sont recopiés d'ici : si le kubeconfig principal
+  # change (get-credentials, rotation), le recouvrement doit être refait.
+  watch_file "$main"
+  export KUBECONFIG="$overlay:$base"
+}
