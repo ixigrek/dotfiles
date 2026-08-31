@@ -82,6 +82,8 @@ brew "jq"
 brew "just"
 # Kubernetes command-line interface
 brew "kubernetes-cli"
+# Kubernetes controller and tool for one-way encrypted Secrets
+brew "kubeseal"
 # Simple terminal UI for git commands
 brew "lazygit"
 # Powerful, lightweight programming language
