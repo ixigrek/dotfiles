@@ -47,3 +47,22 @@ if (( $+commands[eza] )); then
   # et consorts ; `tree` (le binaire du Brewfile) reste dispo pour le reste.
   alias lT='eza --tree --level=2 --group-directories-first --icons=auto --git-ignore'
 fi
+
+# --- Raccourcis Kubernetes ---
+# Trois lettres pour les trois CLI utilisées en boucle. Elles héritent du
+# contexte posé par direnv (`use kube` → KUBECONFIG, cf. ~/.config/direnv/
+# direnvrc) sans rien avoir à faire : ce sont de simples alias, l'environnement
+# du shell les suit.
+#
+# Pas de `compdef k=kubectl` : COMPLETE_ALIASES est désactivé (défaut zsh, et
+# oh-my-zsh ne le pose pas), donc zsh développe l'alias avant de chercher la
+# complétion — `k get po<TAB>` passe déjà par _kubectl. Poser l'option
+# inverserait ce comportement et casserait ces trois lignes d'un coup.
+# Les trois fonctions _kubectl / _helm / _argocd viennent des site-functions de
+# brew, déjà dans le fpath (10-completion.zsh) : rien à générer dans ~/.zfunc.
+#
+# Noms d'une lettre : vérifier `whence -v k h a` avant d'en ajouter d'autres,
+# et se souvenir des échappatoires citées plus haut (\k, 'k', command k).
+(( $+commands[kubectl] )) && alias k='kubectl'
+(( $+commands[helm]    )) && alias h='helm'
+(( $+commands[argocd]  )) && alias a='argocd'
