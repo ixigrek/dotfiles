@@ -1,0 +1,166 @@
+# Statusline Claude Code — rendue par starship, palette Gruvbox Material.
+# Appelée par ~/.claude/statusline.sh, qui traduit le JSON de Claude Code en
+# variables d'environnement (CLAUDE_MODEL, CLAUDE_COST...) : les modules
+# env_var ci-dessous les affichent, exactement comme [env_var.aws] le fait
+# pour AWS_PROFILE dans ~/.config/starship.toml.
+#
+# Une seule ligne : pas de add_newline, pas de $character, pas de $fill —
+# la statusline ne reçoit pas la largeur du terminal, un alignement à droite
+# se ferait sur les 80 colonnes par défaut, donc au mauvais endroit.
+#
+# Aucun fond peint, couleurs de texte uniquement, même raison que le prompt :
+# ghostty tourne en background-opacity 0.25 + macos-glass-regular.
+#
+# Les modules de contexte (kubernetes, terraform, aws, azure, gcloud) sont
+# copiés du prompt avec leur cloisonnement par variable d'environnement : ils
+# ne rendent quelque chose que si claude a été lancé dans un dépôt dont le
+# .envrc les pose. Ils disent le rayon de souffle avant que Claude ne lance un
+# kubectl apply ou un terraform apply.
+
+format = """${env_var.model}${env_var.style}$directory$git_branch$git_status$git_state\
+${env_var.ctx_ok}${env_var.ctx_warn}${env_var.ctx_hot}${env_var.cost}${env_var.added}${env_var.removed}\
+$kubernetes$terraform${env_var.aws}$azure$gcloud"""
+
+add_newline = false
+palette = "gruvbox_material"
+
+[palettes.gruvbox_material]
+fg     = "#d4be98"
+grey0  = "#7c6f64"
+grey1  = "#928374"
+red    = "#ea6962"
+orange = "#e78a4e"
+yellow = "#d8a657"
+green  = "#a9b665"
+aqua   = "#89b482"
+blue   = "#7daea3"
+purple = "#d3869b"
+
+# --- Session Claude ---
+[env_var.model]
+variable = "CLAUDE_MODEL"
+format = "[$symbol$env_value]($style) "
+symbol = "✳ "
+style = "aqua bold"
+
+# Posée seulement quand le style de sortie n'est pas `default` : le cas normal
+# ne mérite pas de place.
+[env_var.style]
+variable = "CLAUDE_STYLE"
+format = "[$env_value]($style) "
+style = "grey1"
+
+# Occupation de la fenêtre de contexte. Un module env_var n'a qu'un style fixe
+# et starship ne réinterprète pas le balisage contenu dans $env_value : trois
+# modules donc, dont le script n'en pose jamais qu'un seul.
+[env_var.ctx_ok]
+variable = "CLAUDE_CTX_OK"
+format = "[$symbol$env_value]($style) "
+symbol = "󰧑 "
+style = "green bold"
+
+[env_var.ctx_warn]
+variable = "CLAUDE_CTX_WARN"
+format = "[$symbol$env_value]($style) "
+symbol = "󰧑 "
+style = "yellow bold"
+
+[env_var.ctx_hot]
+variable = "CLAUDE_CTX_HOT"
+format = "[$symbol$env_value]($style) "
+symbol = "󰧑 "
+style = "red bold"
+
+[env_var.cost]
+variable = "CLAUDE_COST"
+format = "[$symbol$env_value]($style) "
+symbol = " "
+style = "yellow bold"
+
+[env_var.added]
+variable = "CLAUDE_ADDED"
+format = "[$env_value]($style)"
+style = "green"
+
+[env_var.removed]
+variable = "CLAUDE_REMOVED"
+format = "[$env_value]($style) "
+style = "red"
+
+# --- Emplacement ---
+# truncate_to_repo = false, contrairement au prompt : dans un worktree la
+# racine du dépôt s'appelle comme la branche (~/.Projects/claude-skills/main
+# sur `main`), et le module répétait ce que git_branch dit déjà. Deux
+# composants disent le dépôt ET le worktree : claude-skills/main.
+[directory]
+style = "blue bold"
+truncation_length = 2
+truncate_to_repo = false
+truncation_symbol = "…/"
+read_only = " 󰌾"
+read_only_style = "orange"
+
+# --- Git ---
+[git_branch]
+format = "[$symbol$branch]($style) "
+symbol = " "
+style = "purple bold"
+
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "orange"
+conflicted = "="
+ahead = "↑${count}"
+behind = "↓${count}"
+diverged = "↕↑${ahead_count}↓${behind_count}"
+untracked = "?${count}"
+stashed = "*${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[git_state]
+format = "\\([$state( $progress_current/$progress_total)]($style)\\) "
+style = "red bold"
+
+# --- Contexte d'exécution ---
+[kubernetes]
+disabled = false
+detect_env_vars = ["KUBECONFIG"]
+format = "[$symbol$context( \\($namespace\\))]($style) "
+symbol = "󱃾 "
+style = "aqua bold"
+
+[[kubernetes.contexts]]
+context_pattern = ".*(prod|prd).*"
+style = "red bold"
+symbol = "󱃾 "
+
+[[kubernetes.contexts]]
+context_pattern = ".*(staging|stg|preprod).*"
+style = "yellow bold"
+symbol = "󱃾 "
+
+[terraform]
+format = "[$symbol$workspace]($style) "
+symbol = " "
+style = "purple bold"
+
+[env_var.aws]
+variable = "AWS_PROFILE"
+format = "[$symbol$env_value]($style) "
+symbol = " "
+style = "yellow bold"
+
+[azure]
+disabled = false
+format = "[$symbol$subscription]($style) "
+symbol = " "
+style = "blue bold"
+
+[gcloud]
+format = "[$symbol$project]($style) "
+symbol = "󱇶 "
+style = "blue bold"
+detect_env_vars = ["CLOUDSDK_ACTIVE_CONFIG_NAME"]
